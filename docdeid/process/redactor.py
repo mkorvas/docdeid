@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from itertools import groupby
 from operator import attrgetter
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Tuple
 
 from frozendict import frozendict
 
@@ -98,7 +98,8 @@ class SimpleRedactor(Redactor):
         self.check_overlap = check_overlap
 
     @staticmethod
-    def _group_by_tag(annotations: AnnotationSet) -> Iterable[str, Iterable[Annotation]]:
+    def _group_by_tag(annotations: AnnotationSet) \
+            -> Iterable[Tuple[str, Iterable[Annotation]]]:
         """
         Group annotations by tag.
 
