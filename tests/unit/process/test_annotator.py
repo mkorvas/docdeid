@@ -325,6 +325,13 @@ class TestSequenceAnnotator:
             tokenizers={"default": WordBoundaryTokenizer(False)},
         )
 
+    @pytest.fixture
+    def street_doc(self):
+        return Document(
+            text="Laatst is Best",
+            tokenizers={"default": SpaceSplitTokenizer()},
+        )
+
     def test_match_sequence(self, pattern_doc, ds):
         pattern = [{"lookup": "first_names"}, {"like_name": True}]
 
@@ -416,6 +423,16 @@ class TestSequenceAnnotator:
             Annotation(text="Andries Meijer", start_char=12, end_char=26, tag="_")
         ]
 
+    def test_re_match(self, street_doc):
+        annor = SequenceAnnotator(
+            pattern=[{"re_match": "[A-Z][a-z]+(st|str|straat)$"}],
+            tag='straat'
+        )
+        annions = annor.annotate(street_doc)
+        assert annions == [
+            Annotation(text="Laatst", start_char=0, end_char=6, tag="straat"),
+            Annotation(text="Best", start_char=10, end_char=14, tag="straat"),
+        ]
 
 class TestDynamicPhraseLookup:
 
