@@ -5,6 +5,7 @@ from .annotation_processor import (
 )
 from .annotator import (
     Annotator,
+    DynamicPhraseLookup,
     MultiTokenLookupAnnotator,
     RegexpAnnotator,
     SequenceAnnotator,
