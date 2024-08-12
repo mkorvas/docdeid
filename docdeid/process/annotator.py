@@ -16,7 +16,7 @@ from docdeid.ds.lookup import LookupSet, LookupTrie
 from docdeid.pattern import TokenPattern
 from docdeid.process.doc_processor import DocProcessor
 from docdeid.str.processor import StringModifier
-from docdeid.tokenizer import Token
+from docdeid.tokenizer import Token, Tokenizer
 
 
 @dataclass
@@ -609,3 +609,71 @@ class SequenceAnnotator(Annotator):
                 annotations.append(annotation)
 
         return annotations
+
+
+class DynamicPhraseLookup(Annotator):
+    """
+    Annotates phrases listed in document metadata.
+
+    Args:
+        meta_key: Key in the metadata dict that (when present) contains the list of
+                  phrases for this annotator.
+        overlapping: Whether overlapping phrases are to be returned.
+        *args, **kwargs: Passed through to the `Annotator` constructor (which accepts
+            the arguments `tag` and `priority`).
+    """
+
+    def __init__(
+            self,
+            *args,
+            meta_key: str,
+            tokenizer: Tokenizer,
+            overlapping: bool = False,
+            **kwargs,
+    ) -> None:
+
+        self._meta_key = meta_key
+        self._tokenizer = tokenizer
+        self._overlapping = overlapping
+
+        super().__init__(*args, **kwargs)
+
+    def annotate(self, doc: Document) -> list[Annotation]:
+
+        meta_defs = doc.metadata[self._meta_key]
+        if doc.metadata is None or not meta_defs:
+            return []
+
+        tokens = doc.get_tokens()
+        words = [tok.text for tok in tokens]
+        meta_tokenized = [[tok.text for tok in self._tokenizer.tokenize(phrase)]
+                          for phrase in meta_defs]
+        annos = []
+        min_i = 0
+
+        for i in range(len(words)):
+
+            if i < min_i:
+                continue
+
+            for needle in meta_tokenized:
+                if words[i : i + len(needle)] == needle:
+                    start_token = tokens[i]
+                    end_token = tokens[i + len(needle) - 1]
+
+                    annos.append(
+                        Annotation(
+                            text=doc.text[start_token.start_char : end_token.end_char],
+                            start_char=start_token.start_char,
+                            end_char=end_token.end_char,
+                            start_token=start_token,
+                            end_token=end_token,
+                            tag=self.tag,
+                            priority=self.priority,
+                        )
+                    )
+
+                    if not self._overlapping:
+                        min_i = i + len(needle)  # skip ahead
+
+        return annos

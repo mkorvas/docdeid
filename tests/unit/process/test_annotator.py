@@ -11,6 +11,7 @@ from docdeid.document import Document
 from docdeid.ds import DsCollection, LookupSet, LookupTrie
 from docdeid.pattern import TokenPattern
 from docdeid.process.annotator import (
+    DynamicPhraseLookup,
     MultiTokenLookupAnnotator,
     RegexpAnnotator,
     SequenceAnnotator,
@@ -414,3 +415,21 @@ class TestSequenceAnnotator:
         assert tpa.annotate(pattern_doc) == [
             Annotation(text="Andries Meijer", start_char=12, end_char=26, tag="_")
         ]
+
+
+class TestDynamicPhraseLookup:
+
+    def test_dynamic_lookup(self, long_text):
+        phrases = ["my name", "my wife"]
+        doc = Document(long_text,
+                       tokenizers={"default": SpaceSplitTokenizer()},
+                       metadata={"desc": phrases})
+        annotator = DynamicPhraseLookup(meta_key="desc", tag="dyna",
+                                        tokenizer=SpaceSplitTokenizer())
+        expected_annotations = [
+            Annotation(text="my wife", start_char=39, end_char=46, tag="dyna"),
+        ]
+
+        annotations = annotator.annotate(doc)
+
+        assert annotations == expected_annotations
