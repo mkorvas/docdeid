@@ -103,6 +103,7 @@ class OverlapResolver(AnnotationProcessor):
 
                 for start_char_run, end_char_run in self._zero_runs(mask_annotation):
 
+                    # FIXME Trim whitespace from the abbreviated mention.
                     processed_annotations.append(
                         Annotation(
                             text=annotation.text[start_char_run:end_char_run],
