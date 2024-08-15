@@ -5,7 +5,8 @@ import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Iterable, Literal, Optional, Union
+from operator import attrgetter
+from typing import Iterable, Literal, Optional, Union, Tuple
 
 import docdeid.str
 from docdeid.annotation import Annotation
@@ -32,6 +33,7 @@ class SimpleTokenPattern:
         "lookup",
         "neg_lookup",
         "tag",
+        "tagged_mention",
     ]
     pattern: str
 
@@ -124,22 +126,41 @@ class Annotator(DocProcessor, ABC):
         # end").
         tok_patterns = dir_.iter(seq_pattern.pattern)
 
-        num_matched = 0
-        end_token = start_token
-        for tok_pattern, end_token in zip(tok_patterns, tokens):
-            if _PatternPositionMatcher.match(
+        try:
+            tok = next(tokens)
+        except StopIteration:
+            return None
+        end_token = tok
+        for tok_pattern in tok_patterns:
+            # Match the current token against the pattern.
+            if tok is None:
+                return None
+            matching = _PatternPositionMatcher.match(
                 token_pattern=tok_pattern,
-                token=end_token,
-                annos=annos_by_token[end_token],
+                token=tok,
+                annos=annos_by_token[tok],
+                dir=dir_,
                 ds=dicts,
                 metadata=doc.metadata,
-            ):
-                num_matched += 1
-            else:
-                break
-
-        if num_matched != len(seq_pattern.pattern):
-            return None
+            )
+            if not matching[0]:
+                return None
+            # Advance the current token.
+            try:
+                if (mention := matching[1]) is not None:
+                    if dir_ == Direction.LEFT:
+                        while tok.start_char >= mention.start_char:
+                            end_token = tok
+                            tok = next(tokens)
+                    else:
+                        while tok.end_char <= mention.end_char:
+                            end_token = tok
+                            tok = next(tokens)
+                else:
+                    end_token = tok
+                    tok = next(tokens)
+            except StopIteration:
+                tok = None
 
         left_token, right_token = dir_.iter((start_token, end_token))
 
@@ -422,7 +443,8 @@ class _PatternPositionMatcher:  # pylint: disable=R0903
     """Checks if a token matches against a single pattern."""
 
     @classmethod
-    def match(cls, token_pattern: dict | TokenPatternFromCfg, **kwargs) -> bool:
+    def match(cls, token_pattern: dict | TokenPatternFromCfg, **kwargs) \
+            -> Tuple[bool, Optional[Annotation]]:
         # pylint: disable=R0911
         """
         Matches a pattern position (a dict with one key). Other information should be
@@ -433,7 +455,10 @@ class _PatternPositionMatcher:  # pylint: disable=R0903
             kwargs: Any other information, like the token or ds
 
         Returns:
-            True if the pattern position matches, false otherwise.
+            A tuple of:
+              1. True if the pattern position matches, False otherwise.
+              2. An :class:`Annotation` if the match is an annotated mention (which
+                 is the case for matches of "tagged_mention" patterns).
         """
 
         if isinstance(token_pattern, dict):
@@ -443,9 +468,9 @@ class _PatternPositionMatcher:  # pylint: disable=R0903
         value = token_pattern.pattern
 
         if func == "equal":
-            return kwargs["token"].text == value
+            return kwargs["token"].text == value, None
         if func == "re_match":
-            return re.match(value, kwargs["token"].text) is not None
+            return re.match(value, kwargs["token"].text) is not None, None
         if func == "is_initial":
 
             warnings.warn(
@@ -457,28 +482,46 @@ class _PatternPositionMatcher:  # pylint: disable=R0903
             return (
                 (len(kwargs["token"].text) == 1 and kwargs["token"].text[0].isupper())
                 or kwargs["token"].text in {"Ch", "Chr", "Ph", "Th"}
-            ) == value
+            ) == value, None
         if func == "is_initials":
             return (
                 len(kwargs["token"].text) <= 4 and kwargs["token"].text.isupper()
-            ) == value
+            ) == value, None
         if func == "like_name":
             return (
                 len(kwargs["token"].text) >= 3
                 and kwargs["token"].text.istitle()
                 and not any(ch.isdigit() for ch in kwargs["token"].text)
-            ) == value
+            ) == value, None
         if func == "lookup":
-            return cls._lookup(value, **kwargs)
+            return cls._lookup(value, **kwargs), None
         if func == "neg_lookup":
-            return not cls._lookup(value, **kwargs)
+            return not cls._lookup(value, **kwargs), None
         if func == "tag":
             annos = kwargs.get("annos", ())
-            return any(anno.tag == value for anno in annos)
+            return any(anno.tag == value for anno in annos), None
+        if func == "tagged_mention":
+            token = kwargs["token"]
+            dir_ = kwargs["dir"]
+            edge_attr = 'start_token' if dir_ == Direction.RIGHT else 'end_token'
+            annos = kwargs.get("annos", ())
+            matching_annos = [anno for anno in annos
+                              if anno.tag == value and
+                                 getattr(anno, edge_attr) == token]
+            if matching_annos:
+                return True, max(matching_annos, key=lambda anno: anno.length)
+            return False, None
         if func == "and":
-            return all(cls.match(x, **kwargs) for x in value)
+            args = {cls.match(x, **kwargs) for x in value}
+            return ((False, None) if (False, None) in args else
+                    (True, max(annos, key=attrgetter('length')))
+                    if (annos := [anno for _, anno in args if anno is not None])
+                    else (True, None))
         if func == "or":
-            return any(cls.match(x, **kwargs) for x in value)
+            args = {cls.match(x, **kwargs) for x in value}
+            return ((True, max(annos, key=attrgetter('length')))
+                    if (annos := [anno for _, anno in args if anno is not None])
+                    else max(args))  # (True, None) > (False, None)
 
         raise NotImplementedError(f"No known logic for pattern {func}")
 
