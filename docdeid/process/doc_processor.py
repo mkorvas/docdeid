@@ -148,7 +148,7 @@ class DocProcessorGroup:
                 proc.process(doc, enabled=enabled, disabled=disabled)
 
             if _ROOT_LOGGER.isEnabledFor(logging.DEBUG):
-                logging.debug("after %s: %s", name, annotate_doc(doc))
+                logging.debug("after %s: %s", name, annotate_doc(doc, True))
 
     def __iter__(self) -> Iterator:
 

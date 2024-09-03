@@ -36,12 +36,15 @@ def annotate_intext(doc: Document) -> str:
     return text
 
 
-def annotate_doc(doc: Document) -> str:
+def annotate_doc(doc: Document, debug=False) -> str:
     """
     Adds XML-like markup for annotations into the text of a document.
 
     Handles also nested mentions and in a way also overlapping mentions, even though
     this kind of markup cannot really represent them.
+
+    :param doc:   Annotated document to render
+    :param debug: Should extra information useful for debugging purposes be printed?
     """
     annos_from_shortest = sorted(
         doc.annotations, key=lambda anno: anno.end_char - anno.start_char
@@ -57,9 +60,13 @@ def annotate_doc(doc: Document) -> str:
     for idx in markup_indices:
         chunks.append(doc.text[last_idx:idx])
         for ending_anno in idx_to_anno_ends[idx]:
-            chunks.append(f"</{ending_anno.tag.upper()}>")
+            prio = (f'x{ending_anno.priority}' if debug and ending_anno.priority
+                    else '')
+            chunks.append(f"</{ending_anno.tag.upper()}{prio}>")
         for starting_anno in reversed(idx_to_anno_starts[idx]):
-            chunks.append(f"<{starting_anno.tag.upper()}>")
+            prio = (f'x{starting_anno.priority}' if debug and starting_anno.priority
+                    else '')
+            chunks.append(f"<{starting_anno.tag.upper()}{prio}>")
         last_idx = idx
     chunks.append(doc.text[last_idx:])
     return "".join(chunks)
