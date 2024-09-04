@@ -3,6 +3,8 @@ import unicodedata
 from abc import ABC, abstractmethod
 from typing import Iterable
 
+from docdeid.str.utils import remove_nonascii, replace_nonascii, lowercase_tail
+
 
 class StringProcessor(ABC):
     """Abstract class for string processing."""
@@ -78,18 +80,13 @@ _WORD_RX = re.compile("\\w+", re.U)
 
 
 class LowercaseTail(StringModifier):
-    """Lowercases the tail of words."""
+    """Lowercases the tail of all-caps words."""
 
     def __init__(self, lang: str = "nl") -> None:
         self._lang = lang
 
     def _process_word_match(self, match: re.Match) -> str:
-        word = match.group(0)
-        if word.isupper():
-            if self._lang == "nl" and word.startswith("IJ"):
-                return word[0:2] + word[2:].lower()
-            return word[0] + word[1:].lower()
-        return word
+        return lowercase_tail(match.group(0), self._lang)
 
     def process(self, item: str) -> str:
         return _WORD_RX.sub(self._process_word_match, item)
@@ -113,14 +110,8 @@ class RemoveNonAsciiCharacters(StringModifier):
     E.g.: Renée -> Rene.
     """
 
-    @staticmethod
-    def _normalize_value(text: str) -> str:
-        """Removes all non-ascii characters from a string."""
-        text = str(bytes(text, encoding="ascii", errors="ignore"), encoding="ascii")
-        return unicodedata.normalize("NFKD", text)
-
     def process(self, item: str) -> str:
-        return self._normalize_value(item)
+        return remove_nonascii(item)
 
 
 class ReplaceNonAsciiCharacters(StringModifier):
@@ -131,15 +122,8 @@ class ReplaceNonAsciiCharacters(StringModifier):
     tricky in practice for some characters.
     """
 
-    @staticmethod
-    def _normalize_value(text: str) -> str:
-        text = unicodedata.normalize("NFD", text)
-        text = text.encode("ascii", "ignore").decode("utf-8")
-
-        return str(text)
-
     def process(self, item: str) -> str:
-        return self._normalize_value(item)
+        return replace_nonascii(item)
 
 
 class ReplaceValue(StringModifier):
