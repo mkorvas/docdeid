@@ -1,4 +1,5 @@
 import unicodedata
+from itertools import filterfalse
 
 
 def remove_nonascii(text: str) -> str:
@@ -19,6 +20,17 @@ def replace_nonascii(text: str) -> str:
     """
     text = unicodedata.normalize("NFD", text)
     return text.encode("ascii", "ignore").decode("utf-8")
+
+
+def drop_accents(text: str) -> str:
+    """\
+    Drops any accents from characters of the input text.
+
+    :param text: a word or a phrase to process
+    """
+    decomposed = unicodedata.normalize("NFD", text)
+    wo_accents = filterfalse(unicodedata.combining, decomposed)
+    return ''.join(wo_accents)
 
 
 def lowercase_tail(word: str, lang: str = "nl") -> str:

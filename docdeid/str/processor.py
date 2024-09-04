@@ -1,9 +1,11 @@
 import re
-import unicodedata
 from abc import ABC, abstractmethod
 from typing import Iterable
 
-from docdeid.str.utils import remove_nonascii, replace_nonascii, lowercase_tail
+from docdeid.str.utils import (drop_accents,
+                               lowercase_tail,
+                               remove_nonascii,
+                               replace_nonascii)
 
 
 class StringProcessor(ABC):
@@ -124,6 +126,17 @@ class ReplaceNonAsciiCharacters(StringModifier):
 
     def process(self, item: str) -> str:
         return replace_nonascii(item)
+
+
+class DropAccents(StringModifier):
+    """\
+    Drops any accents from characters of the input text.
+
+    E.g.: "Renée" -> "Renee" but "μL" -> "μL".
+    """
+
+    def process(self, item: str) -> str:
+        return drop_accents(item)
 
 
 class ReplaceValue(StringModifier):
