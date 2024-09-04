@@ -434,6 +434,7 @@ class TestSequenceAnnotator:
             Annotation(text="Best", start_char=10, end_char=14, tag="straat"),
         ]
 
+
 class TestDynamicPhraseLookup:
 
     def test_dynamic_lookup(self, long_text):
@@ -448,5 +449,20 @@ class TestDynamicPhraseLookup:
         ]
 
         annotations = annotator.annotate(doc)
+        assert annotations == expected_annotations
 
+    def test_normalization(self, long_text):
+        phrases = ["my name", "my wife"]
+        doc = Document(long_text,
+                       tokenizers={"default": SpaceSplitTokenizer()},
+                       metadata={"desc": phrases})
+        annotator = DynamicPhraseLookup(meta_key="desc", tag="dyna",
+                                        tokenizer=SpaceSplitTokenizer(),
+                                        matching_pipeline=[LowercaseString()])
+        expected_annotations = [
+            Annotation(text="My name", start_char=0, end_char=7, tag="dyna"),
+            Annotation(text="my wife", start_char=39, end_char=46, tag="dyna"),
+        ]
+
+        annotations = annotator.annotate(doc)
         assert annotations == expected_annotations
