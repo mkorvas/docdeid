@@ -3,6 +3,8 @@ from collections import defaultdict
 from frozendict import frozendict
 
 from docdeid.document import Document
+from docdeid.ds import LookupTrie, LookupSet
+from docdeid.tokenizer import Tokenizer
 
 
 def annotate_intext(doc: Document) -> str:
@@ -70,3 +72,25 @@ def annotate_doc(doc: Document, debug=False) -> str:
         last_idx = idx
     chunks.append(doc.text[last_idx:])
     return "".join(chunks)
+
+
+def lookup_set_to_trie(
+        lookup_set: LookupSet, tokenizer: Tokenizer
+) -> LookupTrie:
+    """
+    Converts a LookupSet into an equivalent LookupTrie.
+
+    Args:
+        lookup_set: The input LookupSet
+        tokenizer: The tokenizer used to create sequences
+
+    Returns: A LookupTrie with the same items and matching pipeline as the
+    input LookupSet.
+    """
+
+    trie = LookupTrie(matching_pipeline=lookup_set.matching_pipeline)
+
+    for item in lookup_set.items():
+        trie.add_item([token.text for token in tokenizer.tokenize(item)])
+
+    return trie
