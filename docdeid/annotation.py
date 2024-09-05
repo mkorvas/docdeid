@@ -220,7 +220,7 @@ class AnnotationSet(set[Annotation]):
                 for anno in self.sorted(by=("start_char",)):
                     try:
                         # Iterate over tokens till we reach the annotation.
-                        while tok.end_char < anno.start_char:
+                        while tok.end_char <= anno.start_char:
                             cur_tok_idx += 1
                             tok = token_list[cur_tok_idx]
                     except IndexError:
