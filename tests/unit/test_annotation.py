@@ -231,3 +231,38 @@ class TestAnnotationSet:
         }
 
         assert got == want
+
+    def test_annos_by_token_3(self, annotations):
+        doc = Document(
+            "patiënt:\n\nPols Jan.\nnum: A1234567 BCD*",
+            tokenizers={"default": WordBoundaryTokenizer(True)},
+        )
+        aset = AnnotationSet(
+            [
+                a1 := Annotation("Pols", 10, 14, "second"),
+                a2 := Annotation("Pols Jan", 10, 18, "patient"),
+                a3 := Annotation("Jan", 15, 18, "first"),
+                # Alert: not respecting token boundaries:
+                a4 := Annotation("1234567", 25, 32, "id"),
+                a5 := Annotation("4567 BC", 28, 35, "zip"),
+            ]
+        )
+
+        got = aset.annos_by_token(doc)
+
+        want = {
+            # Token("patiënt", 0, 7): {},
+            # Token(":\n\n", 7, 10): {},
+            Token("Pols", 10, 14): {a1, a2},
+            Token(" ", 14, 15): {a2},
+            Token("Jan", 15, 18): {a2, a3},
+            # Token(".\n", 18, 20): {},
+            # Token("num", 20, 23): {},
+            # Token(": ", 23, 25): {},
+            Token("A1234567", 25, 33): {a4, a5},
+            Token(" ", 33, 34): {a5},
+            Token("BCD", 34, 37): {a5},
+            # Token("*", 37, 38): {},
+        }
+
+        assert got == want
