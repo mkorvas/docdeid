@@ -384,7 +384,7 @@ class WordBoundaryTokenizer(Tokenizer):  # pylint: disable=R0903
 
     def _split_text(self, text: str) -> list[Token]:
         tokens = []
-        matches = [*re.finditer(r"\b", text)]
+        matches = [*re.finditer(r"\b|^|$", text)]
 
         for start_match, end_match in zip(matches, matches[1:]):
 
