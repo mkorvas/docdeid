@@ -33,16 +33,19 @@ def drop_accents(text: str) -> str:
     return ''.join(wo_accents)
 
 
-def lowercase_tail(word: str, lang: str = "nl") -> str:
+def lowercase_tail(word: str,
+                   lang: str = "nl",
+                   keep_mixed: bool = True) -> str:
     """\
     Lowercases tail of an all-caps word, keeping the first letter as is. In Dutch,
     the `IJ` digraph is considered one letter. If the word is not all-caps, returns
-    it unchanged.
+    it unchanged by default.
 
     :param word: the word to process
     :param lang: 2-letter language code of the current language, default: "nl"
+    :param keep_mixed: should mixed-case tokens be kept untouched?
     """
-    if word.isupper():
+    if not keep_mixed or word.isupper():
         if lang == "nl" and word.startswith("IJ"):
             return word[0:2] + word[2:].lower()
         return word[0] + word[1:].lower()
