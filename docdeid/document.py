@@ -84,7 +84,8 @@ class Document:
         with directly."""
 
         self._token_lists: dict[str, TokenList] = {}
-        self._annotations = AnnotationSet()
+        existing_annos = () if metadata is None else metadata.get('annotations', ())
+        self._annotations = AnnotationSet(existing_annos)
         self._deidentified_text: Optional[str] = None
 
     @property
