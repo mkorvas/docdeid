@@ -3,8 +3,6 @@ from itertools import groupby
 from operator import attrgetter
 from typing import Optional, Iterable, Tuple
 
-from frozendict import frozendict
-
 from docdeid.annotation import Annotation, AnnotationSet
 from docdeid.document import Document, MetaData
 from docdeid.process.doc_processor import DocProcessor
@@ -115,35 +113,34 @@ class SimpleRedactor(Redactor):
         return groupby(reordered, tag_getter)
 
     @staticmethod
-    def _replace_annotations_in_text(
-        text: str, annotations: AnnotationSet, replacement: dict[Annotation, str]
+    def _replace_annotations_in_text(text: str,
+                                     annotations: AnnotationSet,
+                                     replacement: dict[str, dict[str, str]]
     ) -> str:
         """
-        Replaces each annotation in the text with the string defined in ``replacement``
-        mapping.
+        Replaces each annotation in the text with the string defined in
+        the ``replacement`` mapping.
 
         Args:
-            text: The original input text.
-            annotations: The original set of input annotations.
-            replacement: A mapping from :class:`.Annotation` to its string replacment.
+            text: the original input text
+            annotations: mention annotations to replace
+            replacement: a `{tag: {mention: replacement}}` mapping
 
         Returns:
             The text, with each annotation replaced by its defined replacement.
         """
 
-        sorted_annotations = annotations.sorted(
-            by=("end_char",), callbacks=frozendict(end_char=lambda x: -x)
-        )
+        pos = 0
+        chunks = []
+        for annotation in annotations.sorted(("start_char", "end_char")):
+            if annotation.start_char > pos:
+                chunks.append(text[pos: annotation.start_char])
+            chunks.append(replacement[annotation.tag][annotation.text])
+            pos = annotation.end_char
+        if pos < len(text):
+            chunks.append(text[pos:])
 
-        for annotation in sorted_annotations:
-
-            text = (
-                text[: annotation.start_char]
-                + replacement[annotation]
-                + text[annotation.end_char :]
-            )
-
-        return text
+        return ''.join(chunks)
 
     def redact(self,
                text: str,
@@ -176,14 +173,15 @@ class SimpleRedactor(Redactor):
         annotation_replacement = {}
 
         for annotation in annotations:
-
-            annotation_replacement[annotation] = (
-                f"{self.open_char}"
-                f"{annotation.tag.upper()}"
-                f"-"
-                f"{annotation_text_to_counter[annotation.text]}"
-                f"{self.close_char}"
-            )
+            tag_repls = annotation_replacement.setdefault(annotation.tag, {})
+            if annotation.text not in tag_repls:
+                tag_repls[annotation.text] = (
+                    f"{self.open_char}"
+                    f"{annotation.tag.upper()}"
+                    f"-"
+                    f"{annotation_text_to_counter[annotation.text]}"
+                    f"{self.close_char}"
+                )
 
         return self._replace_annotations_in_text(
             text, annotations, annotation_replacement
