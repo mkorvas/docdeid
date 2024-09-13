@@ -11,16 +11,24 @@ class MetaData:
     """
     Contains additional information on a text that is provided by the user on input. A
     :class:`.MetaData` object is kept with the text in a :class:`.Document`, where it
-    can be accessed by document processors. Note that a :class:`.MetaData` object does
-    not allow overwriting keys. This is done to prevent document processors accidentally
-    interfering with each other.
+    can be accessed by document processors.
+
+    Note that a :class:`.MetaData` object does not allow overwriting keys. This is
+    done to prevent document processors accidentally interfering with each other.
+
+    Note also that when initialized with an existing dict of metadata, the object will
+    create a _shallow_ copy of the provided dict, a feature that can be used for
+    feeding in structured information for document processors and retrieving the
+    information updated after the deidentification process, like for example a
+    mapping of mentions to their associated placeholder index (the "42" in
+    "PERSOON-42").
 
     Args:
         items: A ``dict`` of items to initialize with.
     """
 
     def __init__(self, items: Optional[dict] = None) -> None:
-        self._items = items or {}
+        self._items = dict(items) if items is not None else {}
 
     def __getitem__(self, key: str) -> Optional[Any]:
         """
